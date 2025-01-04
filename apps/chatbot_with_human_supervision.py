@@ -10,7 +10,7 @@ from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
 from langchain_openai import ChatOpenAI
 from langchain_community.tools.tavily_search import TavilySearchResults
-from langchain_core.messages import ToolMessage, BaseMessage
+from langchain_core.messages import ToolMessage, BaseMessage, AIMessage
 from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.checkpoint.memory import MemorySaver
 
@@ -82,6 +82,38 @@ while True:
             break
         elif user_input.lower() == "continue":
             stream_graph_updates(None, config=config, stream_mode="values")
+        elif user_input.lower() == "override_ai":
+            # Override AI response directly
+            overriding_input = input("Overwrite input: ")
+            existing_message = graph.get_state(config).values["messages"][-1]
+            new_messages = [
+                # Faked tool message
+                ToolMessage(
+                    content=overriding_input,
+                    tool_call_id=existing_message.tool_calls[0]["id"]
+                ),
+                # Faked AI message
+                AIMessage(content=overriding_input)
+            ]
+            new_messages[-1].pretty_print()
+            graph.update_state(config, {"messages": new_messages}, as_node="chatbot")
+            # Continue graph steaming
+            stream_graph_updates(None, config=config, stream_mode="values")
+        elif user_input.lower() == "override_tool":
+            # Override search queries in the tool call
+            overriding_input = input("Overwrite input: ")
+            existing_message = graph.get_state(config).values["messages"][-1]
+            new_tool_call = existing_message.tool_calls[0].copy()
+            new_tool_call["args"]["query"] = overriding_input
+            new_messages = [
+                AIMessage(
+                    content=existing_message.content,
+                    tool_calls=[new_tool_call],
+                    # Setting ID allows the existing message to be updated
+                    id=existing_message.id),
+            ]
+            new_messages[-1].pretty_print()
+            graph.update_state(config, {"messages": new_messages})
         else:
             stream_graph_updates(user_input, config=config, stream_mode="values")
     except IOError:
