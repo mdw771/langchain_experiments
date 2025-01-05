@@ -99,7 +99,7 @@ while True:
             graph.update_state(config, {"messages": new_messages}, as_node="chatbot")
             # Continue graph steaming
             stream_graph_updates(None, config=config, stream_mode="values")
-        elif user_input.lower() == "override_tool":
+        elif user_input.lower() == "override_tool_call":
             # Override search queries in the tool call
             overriding_input = input("Overwrite input: ")
             existing_message = graph.get_state(config).values["messages"][-1]
